@@ -137,28 +137,121 @@ async def add_force_sub(client: Client, message: Message):
 async def del_force_sub(client: Client, message: Message):
     temp = await message.reply("<b><i>ᴡᴀɪᴛ ᴀ sᴇᴄ..</i></b>", quote=True)
     args = message.text.split(maxsplit=1)
-    all_channels = await db.show_channels()
-
-    if len(args) != 2:
-        return await temp.edit("<b>Usage:</b> <code>/delchnl <channel_id | all></code>")
-
-    if args[1].lower() == "all":
+    
+    try:
+        # Get all channels
+        all_channels = await db.show_channels()
+        
+        # Debug information 
+        channel_info = f"Found {len(all_channels) if all_channels else 0} channels in database."
+        print(channel_info)
+        
         if not all_channels:
             return await temp.edit("<b>❌ No force-sub channels found.</b>")
-        for ch_id in all_channels:
-            await db.del_channel(ch_id)
-        return await temp.edit("<b>✅ All force-sub channels have been removed.</b>")
+            
+        # Format all channels for display
+        channel_list = []
+        for ch_item in all_channels:
+            if isinstance(ch_item, tuple) and len(ch_item) >= 1:
+                ch_id = ch_item[0]
+            elif isinstance(ch_item, (int, str)):
+                ch_id = int(ch_item)
+            elif hasattr(ch_item, 'get'):
+                ch_id = ch_item.get('chat_id') or ch_item.get('id')
+            else:
+                ch_id = str(ch_item)  # Just stringify it as fallback
+            channel_list.append(str(ch_id))
+            
+        # Check command format
+        if len(args) != 2:
+            all_channels_str = "\n".join([f"• <code>{ch}</code>" for ch in channel_list])
+            return await temp.edit(
+                f"<b>Usage:</b> <code>/delchnl &lt;channel_id | all&gt;</code>\n\n"
+                f"<b>Available channels:</b>\n{all_channels_str}"
+            )
 
-    try:
-        ch_id = int(args[1])
-    except ValueError:
-        return await temp.edit("<b>❌ Invalid Channel ID</b>")
+        # Handle "all" command
+        if args[1].lower() == "all":
+            success_count = 0
+            for ch_item in all_channels:
+                try:
+                    if isinstance(ch_item, tuple) and len(ch_item) >= 1:
+                        ch_id = ch_item[0]
+                    elif isinstance(ch_item, (int, str)):
+                        ch_id = int(ch_item)
+                    elif hasattr(ch_item, 'get'):
+                        ch_id = ch_item.get('chat_id') or ch_item.get('id')
+                    else:
+                        ch_id = ch_item
+                        
+                    # Try both functions for compatibility
+                    try:
+                        await db.rem_channel(ch_id)
+                        success_count += 1
+                    except Exception:
+                        await db.del_channel(ch_id)
+                        success_count += 1
+                except Exception as e:
+                    print(f"Error removing channel {ch_item}: {e}")
+                    
+            return await temp.edit(f"<b>✅ {success_count}/{len(all_channels)} force-sub channels have been removed.</b>")
 
-    if ch_id in all_channels:
-        await db.rem_channel(ch_id)
-        return await temp.edit(f"<b>✅ Channel removed:</b> <code>{ch_id}</code>")
-    else:
-        return await temp.edit(f"<b>❌ Channel not found in force-sub list:</b> <code>{ch_id}</code>")
+        # Handle specific channel ID
+        try:
+            ch_id = int(args[1])
+        except ValueError:
+            return await temp.edit("<b>❌ Invalid Channel ID. Please provide a valid numeric ID.</b>")
+
+        # Check if channel ID exists in any format
+        channel_found = False
+        for ch_item in all_channels:
+            item_id = None
+            if isinstance(ch_item, tuple) and len(ch_item) >= 1:
+                item_id = ch_item[0]
+            elif isinstance(ch_item, (int, str)):
+                item_id = int(ch_item)
+            elif hasattr(ch_item, 'get'):
+                item_id = ch_item.get('chat_id') or ch_item.get('id')
+            else:
+                try:
+                    item_id = int(ch_item)
+                except:
+                    item_id = ch_item
+                    
+            if item_id == ch_id:
+                channel_found = True
+                break
+                
+        if channel_found:
+            # Try both functions for compatibility
+            try:
+                success = await db.rem_channel(ch_id)
+            except Exception as e1:
+                try:
+                    success = await db.del_channel(ch_id)
+                except Exception as e2:
+                    return await temp.edit(
+                        f"<b>❌ Error removing channel:</b> <code>{ch_id}</code>\n"
+                        f"<b>Errors:</b>\n"
+                        f"• rem_channel: {e1}\n"
+                        f"• del_channel: {e2}"
+                    )
+                    
+            return await temp.edit(f"<b>✅ Channel removed:</b> <code>{ch_id}</code>")
+        else:
+            all_channels_str = "\n".join([f"• <code>{ch}</code>" for ch in channel_list])
+            return await temp.edit(
+                f"<b>❌ Channel not found in force-sub list:</b> <code>{ch_id}</code>\n\n"
+                f"<b>Available channels:</b>\n{all_channels_str}"
+            )
+            
+    except Exception as e:
+        import traceback
+        tb = traceback.format_exc()
+        return await temp.edit(
+            f"<b>❌ An error occurred:</b>\n<code>{e}</code>\n\n"
+            f"<details>\n<summary>Error details</summary>\n<pre>{tb}</pre>\n</details>"
+        )
 
 # View all channels
 @Bot.on_message(filters.command('listchnl') & filters.private & admin)
