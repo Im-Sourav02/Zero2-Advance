@@ -25,7 +25,8 @@ TUT_VID = f"{TUT_VID}"
 async def start_command(client: Client, message: Message):
     user_id = message.from_user.id
     id = message.from_user.id
-    
+
+    # is_premium = await is_premium_user(id) {Not sure will this harm the bot or not}
 
     # Check if user is banned
     banned_users = await db.get_ban_users()
@@ -52,13 +53,7 @@ async def start_command(client: Client, message: Message):
         except:
             pass
 
-    # Fetch all start sub pictures from the database
-    start_pics = await db.get_start_pics()
-    if start_pics:
-        # Randomly select one image from the list
-        start_pic = random.choice(start_pics)['url']
-    else:
-        start_pic = START_PIC  # Fallback to default if no photos in DB
+    start_pic = START_PIC
 
     # Handle normal message flow
     text = message.text
