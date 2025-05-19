@@ -301,8 +301,7 @@ async def not_joined(client: Client, message: Message):
             pass
 
         # Get force pic (consider caching this too)
-        force_pics = await db.get_force_pics()
-        force_pic_url = random.choice(force_pics)["url"] if force_pics else FORCE_PIC
+        force_pic_url = FORCE_PIC
 
         # Send final message
         await message.reply_photo(
