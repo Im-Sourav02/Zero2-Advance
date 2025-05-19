@@ -25,7 +25,7 @@ TUT_VID = f"{TUT_VID}"
 async def start_command(client: Client, message: Message):
     user_id = message.from_user.id
     id = message.from_user.id
-    is_premium = await is_premium_user(id)
+    
 
     # Check if user is banned
     banned_users = await db.get_ban_users()
