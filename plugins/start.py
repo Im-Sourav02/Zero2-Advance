@@ -53,13 +53,9 @@ async def start_command(client: Client, message: Message):
         except:
             pass
 
-    # Fetch all start sub pictures from the database
-    start_pics = await db.get_start_pics()
-    if start_pics:
-        # Randomly select one image from the list
-        start_pic = random.choice(start_pics)['url']
-    else:
-        start_pic = START_PIC  # Fallback to default if no photos in DB
+
+
+        start_pic = START_PIC  
 
     # Handle normal message flow
     text = message.text
@@ -202,7 +198,7 @@ async def start_command(client: Client, message: Message):
             ]
         )
         await message.reply_photo(
-            photo=start_pic,  # Use the dynamically selected start_pic
+            photo=start_pic,  
             caption=START_MSG.format(
                 first=message.from_user.first_name,
                 last=message.from_user.last_name,
@@ -324,9 +320,7 @@ async def not_joined(client: Client, message: Message):
         except (IndexError, AttributeError):
             pass
 
-        # Get force pic (consider caching this too)
-        force_pics = await db.get_force_pics()
-        force_pic_url = random.choice(force_pics)["url"] if force_pics else FORCE_PIC
+        force_pic_url =  FORCE_PIC
 
         # Send final message
         await message.reply_photo(
