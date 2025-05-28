@@ -8,7 +8,6 @@ import sys
 from datetime import datetime
 from config import *
 
-
 name ="""
  BY INFINIX SYNDICATE
 """
@@ -41,25 +40,34 @@ class Bot(Client):
         except Exception as e:
             self.LOGGER(__name__).warning(e)
             self.LOGGER(__name__).warning(f"Make Sure bot is Admin in DB Channel, and Double check the CHANNEL_ID Value, Current Value {CHANNEL_ID}")
-            self.LOGGER(__name__).info("\nBot Stopped. Join https://t.me/CodeflixSupport for support")
+            self.LOGGER(__name__).info("\nBot Stopped. Join https://t.me/InfinixBotzSupport for support")
             sys.exit()
 
         self.set_parse_mode(ParseMode.HTML)
-        self.LOGGER(__name__).info(f"Bot Running..!\n\nCreated by \nhttps://t.me/Infinix_Adult")
-        self.LOGGER(__name__).info(f"""BOT DEPLOYED BY @Infinix_Adult""")
+        self.LOGGER(__name__).info(f"Bot Running..!\n\nCreated by \nhttps://t.me/InfinixBotz")
+        self.LOGGER(__name__).info(f"""BOT DEPLOYED BY @InfinixBotz""")
 
         self.set_parse_mode(ParseMode.HTML)
         self.username = usr_bot_me.username
-        self.LOGGER(__name__).info(f"Bot Running..! Made by @Infinix_Adult")   
+        self.LOGGER(__name__).info(f"Bot Running..! Made by @InfinixBotz")   
+
+        # Initialize the invite link system - Import inside the method to avoid circular import
+        try:
+            from plugins.start import initialize_invite_system
+            await initialize_invite_system()
+            self.LOGGER(__name__).info("✅ Invite link system initialized successfully")
+        except Exception as e:
+            self.LOGGER(__name__).warning(f"❌ Error initializing invite system: {e}")
 
         # Start Web Server
         app = web.AppRunner(await web_server())
         await app.setup()
         await web.TCPSite(app, "0.0.0.0", PORT).start()
 
-
-        try: await self.send_message(OWNER_ID, text = f"<b><blockquote> Bᴏᴛ Rᴇsᴛᴀʀᴛᴇᴅ by @Infinix_Adult</blockquote></b>")
-        except: pass
+        try: 
+            await self.send_message(OWNER_ID, text = f"<b><blockquote> Bᴏᴛ Rᴇsᴛᴀʀᴛᴇᴅ by @InfinixBotz</blockquote></b>")
+        except: 
+            pass
 
     async def stop(self, *args):
         await super().stop()

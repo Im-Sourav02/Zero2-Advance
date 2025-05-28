@@ -53,7 +53,13 @@ async def start_command(client: Client, message: Message):
         except:
             pass
 
-    start_pic = START_PIC
+    # Fetch all start sub pictures from the database
+    start_pics = await db.get_start_pics()
+    if start_pics:
+        # Randomly select one image from the list
+        start_pic = random.choice(start_pics)['url']
+    else:
+        start_pic = START_PIC  # Fallback to default if no photos in DB
 
     # Handle normal message flow
     text = message.text
@@ -66,7 +72,10 @@ async def start_command(client: Client, message: Message):
             else:
                 base64_string = basic
 
-            # Removed the short_url check, directly process the base64 string
+            if not is_premium and user_id != OWNER_ID and not basic.startswith("yu3elk"):
+                await short_url(client, message, base64_string)
+                return
+
         except Exception as e:
             print(f"Error processing start payload: {e}")
 
@@ -90,18 +99,39 @@ async def start_command(client: Client, message: Message):
                 print(f"Error decoding ID: {e}")
                 return
 
-        temp_msg = await message.reply("<b>Please wait...</b>")
+        try:
+            temp_msg = await message.reply("<b>Please wait...</b>")
+        except Exception as e:
+            if "USER_IS_BLOCKED" in str(e):
+                print(f"User {message.from_user.id} has blocked the bot")
+                return
+            else:
+                print(f"Error sending temp message: {e}")
+                return
+                
         try:
             messages = await get_messages(client, ids)
         except Exception as e:
-            await message.reply_text("Something went wrong!")
+            try:
+                await message.reply_text("Something went wrong!")
+            except:
+                print(f"User {message.from_user.id} has blocked the bot")
             print(f"Error getting messages: {e}")
             return
         finally:
-            await temp_msg.delete()
+            try:
+                await temp_msg.delete()
+            except:
+                pass
 
         codeflix_msgs = []
         for msg in messages:
+            # Check if message has content before copying
+            if not (msg.text or msg.media or msg.caption or msg.sticker or msg.animation or 
+                   msg.document or msg.photo or msg.video or msg.audio or msg.voice or msg.video_note):
+                print(f"Skipping empty message ID: {msg.id}")
+                continue
+                
             caption = (CUSTOM_CAPTION.format(previouscaption="" if not msg.caption else msg.caption.html, 
                                              filename=msg.document.file_name) if bool(CUSTOM_CAPTION) and bool(msg.document)
                        else ("" if not msg.caption else msg.caption.html))
@@ -114,12 +144,22 @@ async def start_command(client: Client, message: Message):
                 codeflix_msgs.append(copied_msg)
             except FloodWait as e:
                 await asyncio.sleep(e.x)
-                copied_msg = await msg.copy(chat_id=message.from_user.id, caption=caption, parse_mode=ParseMode.HTML, 
-                                            reply_markup=reply_markup, protect_content=PROTECT_CONTENT)
-                codeflix_msgs.append(copied_msg)
+                try:
+                    copied_msg = await msg.copy(chat_id=message.from_user.id, caption=caption, parse_mode=ParseMode.HTML, 
+                                                reply_markup=reply_markup, protect_content=PROTECT_CONTENT)
+                    codeflix_msgs.append(copied_msg)
+                except Exception as retry_error:
+                    print(f"Failed to send message after retry: {retry_error}")
+                    continue
             except Exception as e:
-                print(f"Failed to send message: {e}")
-                pass
+                if "Empty messages cannot be copied" in str(e):
+                    print(f"Skipping empty message ID: {msg.id}")
+                elif "USER_IS_BLOCKED" in str(e):
+                    print(f"User {message.from_user.id} has blocked the bot")
+                    return
+                else:
+                    print(f"Failed to send message: {e}")
+                continue
 
         if FILE_AUTO_DELETE > 0:
             notification_msg = await message.reply(
@@ -179,9 +219,10 @@ async def start_command(client: Client, message: Message):
 
 # Create a global dictionary to store chat data
 chat_data_cache = {}
+invite_link_cache = {}  # Cache for storing persistent invite links
 
 async def not_joined(client: Client, message: Message):
-    """Ultra-optimized version with batch processing - Fixed version"""
+    """Ultra-optimized version with batch processing and persistent invite links"""
     user_id = message.from_user.id
     
     # Send checking subscription message
@@ -264,27 +305,10 @@ async def not_joined(client: Client, message: Message):
             # Update cache
             chat_data_cache[chat_id] = chat_data
             
-            # Generate button
+            # Generate button with persistent invite link
             try:
                 name = chat_data.title
-                
-                if mode == "on" and not chat_data.username:
-                    invite = await client.create_chat_invite_link(
-                        chat_id=chat_id,
-                        creates_join_request=True,
-                        expire_date=datetime.utcnow() + timedelta(seconds=FSUB_LINK_EXPIRY) if FSUB_LINK_EXPIRY else None
-                    )
-                    link = invite.invite_link
-                else:
-                    if chat_data.username:
-                        link = f"https://t.me/{chat_data.username}"
-                    else:
-                        invite = await client.create_chat_invite_link(
-                            chat_id=chat_id,
-                            expire_date=datetime.utcnow() + timedelta(seconds=FSUB_LINK_EXPIRY) if FSUB_LINK_EXPIRY else None
-                        )
-                        link = invite.invite_link
-                
+                link = await get_or_create_invite_link(client, chat_id, mode, chat_data)
                 buttons.append([InlineKeyboardButton(text=name, url=link)])
             except Exception as e:
                 print(f"Error creating button for chat {chat_id}: {e}")
@@ -301,7 +325,8 @@ async def not_joined(client: Client, message: Message):
             pass
 
         # Get force pic (consider caching this too)
-        force_pic_url = FORCE_PIC
+        force_pics = await db.get_force_pics()
+        force_pic_url = random.choice(force_pics)["url"] if force_pics else FORCE_PIC
 
         # Send final message
         await message.reply_photo(
@@ -326,120 +351,140 @@ async def not_joined(client: Client, message: Message):
             f"<blockquote expandable><b>Rᴇᴀsᴏɴ:</b> {e}</blockquote>"
         )
 
+async def get_or_create_invite_link(client: Client, chat_id: int, mode: str, chat_data):
+    """
+    Get existing invite link from cache or create a new persistent one
+    """
+    cache_key = f"{chat_id}_{mode}"
+    
+    # Check if we already have a cached invite link
+    if cache_key in invite_link_cache:
+        cached_link = invite_link_cache[cache_key]
+        
+        # Verify if the cached link is still valid
+        if await is_invite_link_valid(client, chat_id, cached_link):
+            return cached_link
+        else:
+            # Remove invalid link from cache
+            del invite_link_cache[cache_key]
+    
+    # Create new invite link
+    try:
+        if chat_data.username:
+            # For public channels, use the username link
+            link = f"https://t.me/{chat_data.username}"
+        else:
+            # For private channels, create invite link
+            if mode == "on":
+                # Create join request link for "on" mode
+                invite = await client.create_chat_invite_link(
+                    chat_id=chat_id,
+                    creates_join_request=True,
+                    name=f"FSub_JoinRequest_{chat_id}",  # Named invite for easier management
+                    # Remove expiry for persistent links
+                )
+            else:
+                # Create regular invite link for other modes
+                invite = await client.create_chat_invite_link(
+                    chat_id=chat_id,
+                    name=f"FSub_Regular_{chat_id}",  # Named invite for easier management
+                    # Remove expiry for persistent links
+                )
+            
+            link = invite.invite_link
+        
+        # Cache the new invite link
+        invite_link_cache[cache_key] = link
+        
+        # Optional: Save to database for persistence across bot restarts
+        await db.save_invite_link(chat_id, mode, link)
+        
+        return link
+        
+    except Exception as e:
+        print(f"Error creating invite link for chat {chat_id}: {e}")
+        # Fallback: return a basic invite if possible
+        if chat_data.username:
+            return f"https://t.me/{chat_data.username}"
+        raise e
+
+async def is_invite_link_valid(client: Client, chat_id: int, invite_link: str) -> bool:
+    """
+    Check if an invite link is still valid
+    """
+    try:
+        # Extract invite hash from the link
+        if "t.me/" in invite_link:
+            if "+/" in invite_link or "joinchat/" in invite_link:
+                # For invite links, try to get invite info
+                invite_hash = invite_link.split("/")[-1]
+                await client.get_chat_invite_link_info(invite_hash)
+                return True
+            else:
+                # For username links, they don't expire
+                return True
+        return False
+    except Exception:
+        # If we can't verify or get an error, consider it invalid
+        return False
+
 async def async_return(value):
     """Helper function to return cached values as async tasks"""
     return value
 
-# Alternative simpler version if the above still has issues
-async def not_joined_simple(client: Client, message: Message):
-    """Simpler version that handles database format issues"""
-    user_id = message.from_user.id
-    buttons = []
-    
-    # Send checking subscription message
-    temp_msg = await message.reply("<b><i>Checking Subscription...</i></b>")
-    
+# Initialize function that will be called from bot.py
+async def initialize_invite_system():
+    """
+    Initialize the invite link system - load cached links from database
+    """
     try:
-        # Get all channels from database
-        all_channels_data = await db.show_channels()
-        
-        if not all_channels_data:
-            return
-        
-        # Process each channel individually to avoid unpacking errors
-        for item in all_channels_data:
-            try:
-                # Handle different possible formats
-                if isinstance(item, tuple):
-                    chat_id = item[0]
-                    mode = item[1] if len(item) > 1 else await db.get_channel_mode(chat_id)
-                elif isinstance(item, (int, str)):
-                    chat_id = int(item)
-                    mode = await db.get_channel_mode(chat_id)
-                else:
-                    print(f"Unexpected item format: {item}")
+        # Check if database has the required methods
+        if hasattr(db, 'get_all_invite_links'):
+            cached_links = await db.get_all_invite_links()
+            for link_data in cached_links:
+                try:
+                    chat_id = link_data['chat_id']
+                    mode = link_data['mode']
+                    link = link_data['invite_link']
+                    cache_key = f"{chat_id}_{mode}"
+                    invite_link_cache[cache_key] = link
+                except Exception as e:
+                    print(f"Error loading cached link: {e}")
                     continue
-                
-                # Check subscription
-                if await is_sub(client, user_id, chat_id):
-                    continue
-                
-                # Get chat data from cache or fetch it
-                if chat_id in chat_data_cache:
-                    data = chat_data_cache[chat_id]
-                else:
-                    data = await client.get_chat(chat_id)
-                    chat_data_cache[chat_id] = data
-                
-                name = data.title
-                
-                # Generate proper invite link based on the mode
-                if mode == "on" and not data.username:
-                    invite = await client.create_chat_invite_link(
-                        chat_id=chat_id,
-                        creates_join_request=True,
-                        expire_date=datetime.utcnow() + timedelta(seconds=FSUB_LINK_EXPIRY) if FSUB_LINK_EXPIRY else None
-                    )
-                    link = invite.invite_link
-                else:
-                    if data.username:
-                        link = f"https://t.me/{data.username}"
-                    else:
-                        invite = await client.create_chat_invite_link(
-                            chat_id=chat_id,
-                            expire_date=datetime.utcnow() + timedelta(seconds=FSUB_LINK_EXPIRY) if FSUB_LINK_EXPIRY else None
-                        )
-                        link = invite.invite_link
-                
-                buttons.append([InlineKeyboardButton(text=name, url=link)])
-                
-            except Exception as e:
-                print(f"Error processing channel {item}: {e}")
-                continue
-        
-        # If user is subscribed to all channels, delete temp message and return
-        if not buttons:
-            await temp_msg.delete()
-            return
-        
-        # Add retry button
-        try:
-            buttons.append([
-                InlineKeyboardButton(
-                    text='♻️ Tʀʏ Aɢᴀɪɴ',
-                    url=f"https://t.me/{client.username}?start={message.command[1]}"
-                )
-            ])
-        except (IndexError, AttributeError):
-            pass
-
-        # Get force pic
-        force_pics = await db.get_force_pics()
-        force_pic_url = random.choice(force_pics)["url"] if force_pics else FORCE_PIC
-
-        # Send final message
-        await message.reply_photo(
-            photo=force_pic_url,
-            caption=FORCE_MSG.format(
-                first=message.from_user.first_name,
-                last=message.from_user.last_name,
-                username=None if not message.from_user.username else '@' + message.from_user.username,
-                mention=message.from_user.mention,
-                id=message.from_user.id
-            ),
-            reply_markup=InlineKeyboardMarkup(buttons),
-        )
-        
-        # Delete the temporary message after sending force sub message
-        await temp_msg.delete()
-        
+            
+            print(f"✅ Loaded {len(cached_links)} cached invite links")
+        else:
+            print("⚠️ Database doesn't support invite link caching - running without cache")
+            
     except Exception as e:
-        print(f"Final Error in not_joined_simple: {e}")
-        await temp_msg.edit(
-            f"<b><i>! Eʀʀᴏʀ, Cᴏɴᴛᴀᴄᴛ ᴅᴇᴠᴇʟᴏᴘᴇʀ ᴛᴏ sᴏʟᴠᴇ ᴛʜᴇ ɪssᴜᴇs @Im_Sukuna02</i></b>\n"
-            f"<blockquote expandable><b>Rᴇᴀsᴏɴ:</b> {e}</blockquote>"
-        )
-#=====================================================================================##
+        print(f"❌ Error initializing invite system: {e}")
+
+async def cleanup_invalid_links():
+    """
+    Periodic cleanup function to remove invalid cached links
+    """
+    invalid_keys = []
+    
+    for cache_key, invite_link in invite_link_cache.items():
+        try:
+            # Basic validation - check if link format is correct
+            if not invite_link or not invite_link.startswith("https://t.me/"):
+                invalid_keys.append(cache_key)
+        except Exception:
+            invalid_keys.append(cache_key)
+    
+    # Remove invalid links
+    for key in invalid_keys:
+        del invite_link_cache[key]
+        try:
+            chat_id, mode = key.split("_", 1)
+            if hasattr(db, 'delete_invite_link'):
+                await db.delete_invite_link(int(chat_id), mode)
+        except Exception as e:
+            print(f"Error cleaning up invalid link {key}: {e}")
+    
+    if invalid_keys:
+        print(f"🧹 Cleaned up {len(invalid_keys)} invalid invite links")
 
 
 #=====================================================================================##
