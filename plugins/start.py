@@ -28,7 +28,7 @@ async def start_command(client: Client, message: Message):
 
     # is_premium = await is_premium_user(id) {Not sure will this harm the bot or not}
 
-    # Check if user is banned
+# Check if user is banned
     banned_users = await db.get_ban_users()
     if user_id in banned_users:
         return await message.reply_text(
@@ -53,12 +53,11 @@ async def start_command(client: Client, message: Message):
         except:
             pass
 
-
-
-        start_pic = START_PIC  
-
     # Handle normal message flow
     text = message.text
+    
+    # Use START_PIC from environment variable (define it early so it's available in both branches)
+    start_pic = START_PIC
 
     if len(text) > 7:
         try:
@@ -198,7 +197,7 @@ async def start_command(client: Client, message: Message):
             ]
         )
         await message.reply_photo(
-            photo=start_pic,  
+            photo=start_pic,  # Now uses START_PIC from environment
             caption=START_MSG.format(
                 first=message.from_user.first_name,
                 last=message.from_user.last_name,
@@ -320,7 +319,8 @@ async def not_joined(client: Client, message: Message):
         except (IndexError, AttributeError):
             pass
 
-        force_pic_url =  FORCE_PIC
+        # Use FORCE_PIC from environment variable
+        force_pic_url = FORCE_PIC
 
         # Send final message
         await message.reply_photo(
