@@ -26,6 +26,17 @@ TG_BOT_WORKERS = int(os.environ.get("TG_BOT_WORKERS", "200"))
 START_PIC = os.environ.get("START_PIC", "https://i.ibb.co/7d5ng3jr/photo-2025-05-17-09-26-38-7505343723559976972.jpg")
 FORCE_PIC = os.environ.get("FORCE_PIC", "https://i.ibb.co/7d5ng3jr/photo-2025-05-17-09-26-38-7505343723559976972.jpg")
 #--------------------------------------------
+#--------------------------------------------
+SHORTLINK_API = os.environ.get("SHORTLINK_API", "@Im_Sukuna02")  # Default Shortlink API
+SHORTLINK_URL = os.environ.get("SHORTLINK_URL", "linkshortify.com")  # Default Shortlink URL
+SHORT_MSG = "<b>⌯ Here is Your Download Link, Must Watch Tutorial Before Clicking On Download...</b>"
+
+SHORTENER_PIC = os.environ.get("SHORTENER_PIC", "https://i.ibb.co/7d5ng3jr/photo-2025-05-17-09-26-38-7505343723559976972.jpg")
+
+#--------------------------------------------
+TUT_VID = "https://t.me/Infinity_0034/9"
+
+#--------------------------------------------
 SHORTLINK_API = os.environ.get("SHORTLINK_API", "@Im_Sukuna02")  # Default Shortlink API
 SHORTLINK_URL = os.environ.get("SHORTLINK_URL", "linkshortify.com")  # Default Shortlink URL
 SHORT_MSG = "<b>⌯ Here is Your Download Link, Must Watch Tutorial Before Clicking On Download...</b>"
