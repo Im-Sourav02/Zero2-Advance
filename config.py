@@ -16,8 +16,8 @@ OWNER_ID = int(os.environ.get("OWNER_ID", "@Im_Sukuna02")) # Owner id
 #--------------------------------------------
 PORT = os.environ.get("PORT", "8001")
 #--------------------------------------------
-DB_URI = os.environ.get("DATABASE_URL", "@Im_Sukuna02")
-DB_NAME = os.environ.get("DATABASE_NAME", "@Im_Sukuna02")
+DB_URI = os.environ.get("DATABASE_URL", "")
+DB_NAME = os.environ.get("DATABASE_NAME", "Im_Sukuna02")
 #--------------------------------------------
 FSUB_LINK_EXPIRY = int(os.getenv("FSUB_LINK_EXPIRY", "10"))  # 0 means no expiry
 BAN_SUPPORT = os.environ.get("BAN_SUPPORT", "@Im_Sukuna02")
@@ -25,7 +25,15 @@ TG_BOT_WORKERS = int(os.environ.get("TG_BOT_WORKERS", "200"))
 #--------------------------------------------
 START_PIC = os.environ.get("START_PIC", "https://i.ibb.co/7d5ng3jr/photo-2025-05-17-09-26-38-7505343723559976972.jpg")
 FORCE_PIC = os.environ.get("FORCE_PIC", "https://i.ibb.co/7d5ng3jr/photo-2025-05-17-09-26-38-7505343723559976972.jpg")
+#--------------------------------------------
+SHORTLINK_API = os.environ.get("SHORTLINK_API", "@Im_Sukuna02")  # Default Shortlink API
+SHORTLINK_URL = os.environ.get("SHORTLINK_URL", "linkshortify.com")  # Default Shortlink URL
+SHORT_MSG = "<b>⌯ Here is Your Download Link, Must Watch Tutorial Before Clicking On Download...</b>"
 
+SHORTENER_PIC = os.environ.get("SHORTENER_PIC", "https://i.ibb.co/7d5ng3jr/photo-2025-05-17-09-26-38-7505343723559976972.jpg")
+
+#--------------------------------------------
+TUT_VID = "https://t.me/Infinity_0034/9"
 #--------------------------------------------
 HELP_TXT = "<b><blockquote>ᴛʜɪs ɪs ᴀɴ ғɪʟᴇ ᴛᴏ ʟɪɴᴋ ʙᴏᴛ ᴡᴏʀᴋ ғᴏʀ @InFinity_Adult\n\n❏ ʙᴏᴛ ᴄᴏᴍᴍᴀɴᴅs\n├/start : sᴛᴀʀᴛ ᴛʜᴇ ʙᴏᴛ\n├/about : ᴏᴜʀ Iɴғᴏʀᴍᴀᴛɪᴏɴ\n└/help : ʜᴇʟᴘ ʀᴇʟᴀᴛᴇᴅ ʙᴏᴛ\n\n sɪᴍᴘʟʏ ᴄʟɪᴄᴋ ᴏɴ ʟɪɴᴋ ᴀɴᴅ sᴛᴀʀᴛ ᴛʜᴇ ʙᴏᴛ ᴊᴏɪɴ ʙᴏᴛʜ ᴄʜᴀɴɴᴇʟs ᴀɴᴅ ᴛʀʏ ᴀɢᴀɪɴ ᴛʜᴀᴛs ɪᴛ.....!</blockquote></b>"
 ABOUT_TXT = "<b><blockquote>◈ ᴏᴡɴᴇʀ : <a href=t.me/Im_Sukuna02>ɪᴍ•Ꮪᴜ͢ᴋᴜɴᴀ</a>\n◈ ꜰᴏᴜɴᴅᴇʀ ᴏꜰ : <a href=https://t.me/Infinix_Syndicate>ɪɴғɪɴɪx sʏɴᴅɪᴄᴀᴛᴇ</a>\n◈ ᴍᴏᴠɪᴇs ᴄʜᴀɴɴᴇʟ : <a href=https://t.me/Infinix_Movie>ɪɴғɪɴɪx ᴍᴏᴠɪᴇs</a>\n◈ ᴅᴇᴠᴇʟᴏᴘᴇʀ : <a href=https://t.me/ProYato>ʏᴀᴛᴏ</a></blockquote></b>"
