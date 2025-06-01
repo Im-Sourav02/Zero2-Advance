@@ -16,7 +16,6 @@ from bot import Bot
 from config import *
 from helper_func import *
 from database.database import *
-from database.db_premium import *
 
 BAN_SUPPORT = f"{BAN_SUPPORT}"
 TUT_VID = f"{TUT_VID}"
@@ -26,9 +25,7 @@ async def start_command(client: Client, message: Message):
     user_id = message.from_user.id
     id = message.from_user.id
 
-    # is_premium = await is_premium_user(id) {Not sure will this harm the bot or not}
-
-# Check if user is banned
+    # Check if user is banned
     banned_users = await db.get_ban_users()
     if user_id in banned_users:
         return await message.reply_text(
@@ -67,9 +64,10 @@ async def start_command(client: Client, message: Message):
             else:
                 base64_string = basic
 
-            if not is_premium and user_id != OWNER_ID and not basic.startswith("yu3elk"):
-                await short_url(client, message, base64_string)
-                return
+            # Removed premium check - all users can access files directly
+            # if not is_premium and user_id != OWNER_ID and not basic.startswith("yu3elk"):
+            #     await short_url(client, message, base64_string)
+            #     return
 
         except Exception as e:
             print(f"Error processing start payload: {e}")
@@ -228,6 +226,7 @@ async def not_joined(client: Client, message: Message):
         all_channels_data = await db.show_channels()
         
         if not all_channels_data:
+            await temp_msg.delete()
             return
         
         # Handle different return formats from db.show_channels()
@@ -242,7 +241,10 @@ async def not_joined(client: Client, message: Message):
             elif isinstance(item, (int, str)):
                 # Data format: just chat_id, need to fetch mode separately
                 chat_id = int(item)
-                mode = await db.get_channel_mode(chat_id)
+                try:
+                    mode = await db.get_channel_mode(chat_id)
+                except:
+                    mode = 'off'  # Default mode if get_channel_mode doesn't exist
                 channels_to_process.append((chat_id, mode))
             else:
                 # Try to handle as dict or other format
@@ -252,13 +254,17 @@ async def not_joined(client: Client, message: Message):
                         mode = item.get('mode', 'off')
                     else:
                         chat_id = int(item)
-                        mode = await db.get_channel_mode(chat_id)
+                        try:
+                            mode = await db.get_channel_mode(chat_id)
+                        except:
+                            mode = 'off'  # Default mode
                     channels_to_process.append((chat_id, mode))
                 except Exception as e:
                     print(f"Error processing channel item {item}: {e}")
                     continue
         
         if not channels_to_process:
+            await temp_msg.delete()
             return
         
         # Batch process subscription checks
@@ -300,13 +306,19 @@ async def not_joined(client: Client, message: Message):
             # Update cache
             chat_data_cache[chat_id] = chat_data
             
-            # Generate button with persistent invite link
+            # Generate button with invite link
             try:
                 name = chat_data.title
                 link = await get_or_create_invite_link(client, chat_id, mode, chat_data)
-                buttons.append([InlineKeyboardButton(text=name, url=link)])
+                if link:  # Only add button if we have a valid link
+                    buttons.append([InlineKeyboardButton(text=name, url=link)])
             except Exception as e:
                 print(f"Error creating button for chat {chat_id}: {e}")
+        
+        # Only proceed if we have buttons to show
+        if not buttons:
+            await temp_msg.edit("<b>No channels to join found.</b>")
+            return
         
         # Add retry button
         try:
@@ -390,8 +402,12 @@ async def get_or_create_invite_link(client: Client, chat_id: int, mode: str, cha
         # Cache the new invite link
         invite_link_cache[cache_key] = link
         
-        # Optional: Save to database for persistence across bot restarts
-        await db.save_invite_link(chat_id, mode, link)
+        # Optional: Save to database for persistence across bot restarts (only if method exists)
+        try:
+            if hasattr(db, 'save_invite_link'):
+                await db.save_invite_link(chat_id, mode, link)
+        except Exception as e:
+            print(f"Warning: Could not save invite link to database: {e}")
         
         return link
         
@@ -400,7 +416,7 @@ async def get_or_create_invite_link(client: Client, chat_id: int, mode: str, cha
         # Fallback: return a basic invite if possible
         if chat_data.username:
             return f"https://t.me/{chat_data.username}"
-        raise e
+        return None  # Return None instead of raising exception
 
 async def is_invite_link_valid(client: Client, chat_id: int, invite_link: str) -> bool:
     """
