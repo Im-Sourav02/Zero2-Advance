@@ -34,7 +34,7 @@ SHORT_MSG = "<b>⌯ Here is Your Download Link, Must Watch Tutorial Before Click
 SHORTENER_PIC = os.environ.get("SHORTENER_PIC", "https://i.ibb.co/7d5ng3jr/photo-2025-05-17-09-26-38-7505343723559976972.jpg")
 
 #--------------------------------------------
-TUT_VID = "https://t.me/Infinity_0034/9"
+TUT_VID = os.environ.get("SHORTLINK_API", "https://t.me/Infinitx_Tutorial/22")
 
 #--------------------------------------------
 SHORTLINK_API = os.environ.get("SHORTLINK_API", "@Im_Sukuna02")  # Default Shortlink API
